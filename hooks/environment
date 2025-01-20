@@ -39,11 +39,20 @@ function read_meta_data() {
   local meta_data_key
   local meta_data_key_alias
   local mapped_key
+  local optional
 
   IFS='=' read -ra key_mapped <<< "$key_item"
 
   meta_data_key=${key_mapped[0]:-}
   meta_data_key_alias=${key_mapped[1]:-}
+
+  if [[ "$meta_data_key" == *'?' ]]; then
+    meta_data_key=${meta_data_key%?}
+    optional=1
+  else
+    optional=0
+  fi
+
   mapped_key=${meta_data_key_alias:-$meta_data_key}
 
   value=$(buildkite-agent meta-data get "$meta_data_key")
@@ -52,8 +61,12 @@ function read_meta_data() {
     echo "${mapped_key}=(${#value} chars)" >&2;
     echo "${mapped_key}=${value}"
   else
-    echo "Could not read meta-data: ${meta_data_key}" >&2;
-    exit 1
+    if [[ $optional -eq 1 ]]; then
+      echo "Meta-data key ${meta_data_key} not found, not setting ${mapped_key}" >&2;
+    else
+      echo "Could not read meta-data: ${meta_data_key}" >&2;
+      exit 1
+    fi
   fi
 }
 
